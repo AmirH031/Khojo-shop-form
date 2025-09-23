@@ -1,4 +1,25 @@
 import React, { useState } from 'react';
+// Shop categories with emoji and Hindi
+const SHOP_CATEGORIES = [
+  { value: 'kirana', label: '🛒 Kirana / General Store (किराना / जनरल स्टोर)' },
+  { value: 'fruits', label: '🥬 Fruits & Vegetables (Sabzi Mandi) (फल और सब्जी / सब्जी मंडी)' },
+  { value: 'dairy', label: '🥛 Dairy & Bakery (डेयरी और बेकरी)' },
+  { value: 'stationery', label: '📝 Stationery & Printing (स्टेशनरी और प्रिंटिंग)' },
+  { value: 'cosmetics', label: '💄 Cosmetics & Personal Care (कॉस्मेटिक्स और व्यक्तिगत देखभाल)' },
+  { value: 'clothing', label: '👕 Clothing & Garments (कपड़े और वस्त्र)' },
+  { value: 'footwear', label: '👟 Footwear & Bags (जूते और बैग)' },
+  { value: 'electronics', label: '📱 Electronics & Mobile (इलेक्ट्रॉनिक्स और मोबाइल)' },
+  { value: 'jewellery', label: '💍 Jewellery & Imitation (आभूषण और नकली)' },
+  { value: 'medical', label: '🏥 Medical & Healthcare (चिकित्सा और स्वास्थ्य सेवा)' },
+  { value: 'furniture', label: '🪑 Furniture & Home Needs (फर्नीचर और घरेलू जरूरतें)' },
+  { value: 'hardware', label: '🔨 Hardware & Building Material (हार्डवेयर और निर्माण सामग्री)' },
+  { value: 'sports', label: '⚽ Sports & Toys (खेल और खिलौने)' },
+  { value: 'sweetshop', label: '🍬 Sweet Shops (Mithai) (मिठाई की दुकान)' },
+  { value: 'meat', label: '🍖 Meat / Fish / Chicken / Eggs (मांस / मछली / चिकन / अंडे)' },
+  { value: 'tailor', label: '✂️ Tailor / Laundry / Boutique (दर्जी / धुलाई / बुटीक)' },
+  { value: 'gift', label: '🎁 Gift & Decoration (उपहार और सजावट)' },
+  { value: 'homemade', label: '🏠 Homemade Products (घरेलू उत्पाद)' },
+];
 import { Plus, Trash2, Clock, Calendar } from 'lucide-react';
 import { Item, ShopType, ProductItem, MenuItem, ServiceItem, ServiceDetails } from '../types/Item';
 import { getHindiName } from '../utils/itemHelpers';
@@ -25,6 +46,8 @@ const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 const timeSlots = ['9:00-12:00', '12:00-15:00', '15:00-18:00', '18:00-21:00'];
 
 const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, shopType }) => {
+  // Shop category state (null until selected, then fixed until Finish)
+  const [shopCategory, setShopCategory] = useState<string | null>(null);
   const [formData, setFormData] = useState<any>({
     shopType,
     // Common fields
@@ -33,9 +56,9 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, shopType }) => {
     category: '',
     price: '',
     availability: true,
-    
+
     // Product specific
-    brand_name: '',
+    brand_name: [''],
     variety: [''],
     packs: 1,
     
@@ -59,41 +82,50 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, shopType }) => {
         days: [],
         timeSlots: []
       }
-    }
+    },
+    customCategory: ''
   });
 
-  // Removed showAdvanced toggle; all fields are always visible
+  // Confirmation message state
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
     let item: Omit<Item, 'id'>;
-    
+    if (!shopCategory) {
+      alert('Please select a shop category first.');
+      return;
+    }
+    let finalCategory = shopCategory === 'custom' ? (formData.customCategory || '').trim() : shopCategory;
+    if (!finalCategory) {
+      alert('Please enter a custom category.');
+      return;
+    }
     if (shopType === 'product') {
-      if (!formData.name.trim() || !formData.category || !formData.price || !formData.brand_name) {
+      if (!formData.name.trim() || !formData.price || !formData.brand_name.some((b: string) => b.trim())) {
         alert('Please fill all required fields for Product Shop');
         return;
       }
       item = {
         shopType: 'product',
         name: formData.name,
-        category: formData.category,
+        category: finalCategory,
         price: formData.price,
-        brand_name: formData.brand_name,
+        brand_name: formData.brand_name.filter((b: string) => b.trim()),
         hindi_name: formData.hindi_name,
         variety: formData.variety.filter((v: string) => v.trim()),
         packs: formData.packs,
         availability: formData.availability,
       } as ProductItem;
     } else if (shopType === 'menu') {
-      if (!formData.name.trim() || !formData.category) {
+      if (!formData.name.trim()) {
         alert('Please fill all required fields for Menu Shop');
         return;
       }
       item = {
         shopType: 'menu',
         name: formData.name,
-        category: formData.category,
+        category: finalCategory,
         isAvailable: formData.isAvailable,
         hindi_name: formData.hindi_name,
         description: formData.description,
@@ -124,16 +156,16 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, shopType }) => {
     }
 
     onAddItem(item);
-    
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 1500);
     // Reset form
     setFormData({
       shopType,
       name: '',
       hindi_name: '',
-      category: '',
       price: '',
       availability: true,
-      brand_name: '',
+      brand_name: [''],
       variety: [''],
       packs: 1,
       isAvailable: true,
@@ -153,7 +185,8 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, shopType }) => {
           days: [],
           timeSlots: []
         }
-      }
+      },
+      customCategory: ''
     });
     setShowAdvanced(false);
   };
@@ -229,6 +262,45 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, shopType }) => {
     }
   };
 
+  // Helpers for multiple brands
+  const addBrand = () => setFormData((prev: any) => ({ ...prev, brand_name: [...prev.brand_name, ''] }));
+  const removeBrand = (index: number) => setFormData((prev: any) => ({ ...prev, brand_name: prev.brand_name.filter((_: string, i: number) => i !== index) }));
+  const updateBrand = (index: number, value: string) => setFormData((prev: any) => ({ ...prev, brand_name: prev.brand_name.map((b: string, i: number) => i === index ? value : b) }));
+
+  // Finish button handler
+  const handleFinish = () => {
+    setShopCategory(null);
+    setFormData({
+      shopType,
+      name: '',
+      hindi_name: '',
+      price: '',
+      availability: true,
+      brand_name: [''],
+      variety: [''],
+      packs: 1,
+      isAvailable: true,
+      description: '',
+      unit: '',
+      imageUrl: '',
+      highlights: [''],
+      tags: [''],
+      serviceDetails: {
+        duration: '',
+        priceRange: '',
+        serviceCategory: '',
+        serviceName: '',
+        description: [''],
+        features: [''],
+        availability: {
+          days: [],
+          timeSlots: []
+        }
+      },
+      customCategory: ''
+    });
+  };
+
   const renderProductFields = () => (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -260,36 +332,33 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, shopType }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Category *
-          </label>
-          <select
-            value={formData.category}
-            onChange={(e) => setFormData((prev: any) => ({ ...prev, category: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            required
-          >
-            <option value="">Select category</option>
-            {getCategories().map(category => (
-              <option key={category} value={category}>{category}</option>
-            ))}
-          </select>
-        </div>
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Category selection moved to top, only once per shop */}
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Brand Name *
+            Brand Name(s) *
           </label>
-          <input
-            type="text"
-            value={formData.brand_name}
-            onChange={(e) => setFormData((prev: any) => ({ ...prev, brand_name: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            placeholder="Brand name"
-            required
-          />
+          {formData.brand_name.map((brand: string, index: number) => (
+            <div key={index} className="flex items-center gap-2 mb-2">
+              <input
+                type="text"
+                value={brand}
+                onChange={(e) => updateBrand(index, e.target.value)}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                placeholder="Brand name"
+                required
+              />
+              {formData.brand_name.length > 1 && (
+                <button type="button" onClick={() => removeBrand(index)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          ))}
+          <button type="button" onClick={addBrand} className="flex items-center text-sm text-green-600 hover:text-green-700">
+            <Plus className="h-4 w-4 mr-1" /> Add Brand
+          </button>
         </div>
 
         <div>
@@ -384,7 +453,7 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, shopType }) => {
 
   const renderMenuFields = () => (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Dish Name *
@@ -413,23 +482,8 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, shopType }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Category *
-          </label>
-          <select
-            value={formData.category}
-            onChange={(e) => setFormData((prev: any) => ({ ...prev, category: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            required
-          >
-            <option value="">Select category</option>
-            {getCategories().map(category => (
-              <option key={category} value={category}>{category}</option>
-            ))}
-          </select>
-        </div>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Category selection moved to top, only once per shop */}
 
         <div className="flex items-center">
           <input
@@ -786,11 +840,71 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, shopType }) => {
 
   return (
     <div className="bg-white rounded-lg shadow-sm border p-6">
+      {/* Shop Category Selection (only once per shop) */}
+      {!shopCategory && (
+        <div className="mb-6">
+          <label className="block text-base font-semibold text-gray-800 mb-2">Select Shop Category *</label>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <select
+              value={shopCategory === null || shopCategory === 'custom' ? '' : shopCategory}
+              onChange={e => {
+                if (e.target.value === 'custom') {
+                  setShopCategory('custom');
+                } else {
+                  setShopCategory(e.target.value);
+                }
+              }}
+              className="w-full sm:w-auto px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+              required
+            >
+              <option value="">Choose a category...</option>
+              {SHOP_CATEGORIES.map(cat => (
+                <option key={cat.value} value={cat.value}>{cat.label}</option>
+              ))}
+              <option value="custom">Other (Add Custom)</option>
+            </select>
+            {shopCategory === 'custom' && (
+              <input
+                type="text"
+                className="w-full sm:w-auto px-4 py-3 border border-blue-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base mt-2 sm:mt-0"
+                placeholder="Enter custom category"
+                value={formData.customCategory}
+                onChange={e => setFormData((prev: any) => ({ ...prev, customCategory: e.target.value }))}
+                autoFocus
+                required
+              />
+            )}
+          </div>
+        </div>
+      )}
+      {shopCategory && (
+        <div className="mb-4 flex items-center gap-2">
+          {shopCategory === 'custom' ? (
+            <input
+              type="text"
+              className="inline-block px-3 py-2 rounded bg-blue-50 text-blue-700 font-medium text-base border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              value={formData.customCategory}
+              onChange={e => setFormData((prev: any) => ({ ...prev, customCategory: e.target.value }))}
+              placeholder="Enter category"
+              style={{ minWidth: '120px' }}
+              autoFocus
+            />
+          ) : (
+            <span className="inline-block px-3 py-2 rounded bg-blue-50 text-blue-700 font-medium text-base border border-blue-200">
+              {SHOP_CATEGORIES.find(cat => cat.value === shopCategory)?.label}
+            </span>
+          )}
+          <button onClick={handleFinish} type="button" className="ml-2 px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium text-sm">Finish & New Shop</button>
+        </div>
+      )}
       <h2 className="text-xl font-semibold text-gray-900 mb-6">
         {shopType === 'product' && 'Add New Product'}
         {shopType === 'menu' && 'Add New Menu Item'}
         {shopType === 'service' && 'Add New Service'}
       </h2>
+      {showSuccess && (
+        <div className="mb-4 p-3 rounded bg-green-100 text-green-800 text-center font-medium">Item added successfully!</div>
+      )}
       <form onSubmit={handleSubmit} className="space-y-6">
         {shopType === 'product' && renderProductFields()}
         {shopType === 'menu' && renderMenuFields()}

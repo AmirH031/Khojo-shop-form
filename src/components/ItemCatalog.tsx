@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, ShoppingCart, Package } from 'lucide-react';
 import { Item, ShopType } from '../types/Item';
 import { productCatalog, menuCatalog, serviceCatalog } from '../data/itemCatalog';
@@ -14,18 +14,92 @@ const ItemCatalog: React.FC<ItemCatalogProps> = ({ shopType, onAddItems, existin
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [customizations, setCustomizations] = useState<Record<string, any>>({});
+  const [customCatalog, setCustomCatalog] = useState<any[]>([]);
+  const [showAddCustom, setShowAddCustom] = useState(false);
+  const [newCustom, setNewCustom] = useState<any>({});
+
+  // Persistent custom catalog per shop type
+  useEffect(() => {
+    const saved = localStorage.getItem(`customCatalog_${shopType}`);
+    setCustomCatalog(saved ? JSON.parse(saved) : []);
+  }, [shopType]);
+
+  const saveCustomCatalog = (items: any[]) => {
+    setCustomCatalog(items);
+    localStorage.setItem(`customCatalog_${shopType}` , JSON.stringify(items));
+  };
 
   const getCatalog = () => {
+    let base;
     switch (shopType) {
-      case 'product': return productCatalog;
-      case 'menu': return menuCatalog;
-      case 'service': return serviceCatalog;
-      default: return [];
+      case 'product': base = productCatalog; break;
+      case 'menu': base = menuCatalog; break;
+      case 'service': base = serviceCatalog; break;
+      default: base = [];
     }
+    return [...base, ...customCatalog];
   };
 
   const catalog = getCatalog();
   const categories = Array.from(new Set(catalog.map(item => item.category)));
+  // Add custom item logic
+  const handleAddCustom = () => {
+    if (shopType === 'product') {
+      if (!newCustom.name || !newCustom.category || !newCustom.brand_name || !newCustom.typical_price_range) {
+        alert('Fill all required fields'); return;
+      }
+      const item = {
+        name: newCustom.name,
+        hindi_name: newCustom.hindi_name || '',
+        category: newCustom.category,
+        brand_name: newCustom.brand_name,
+        typical_price_range: newCustom.typical_price_range,
+        common_varieties: newCustom.common_varieties ? newCustom.common_varieties.split(',').map((v:string)=>v.trim()) : [],
+        typical_packs: Number(newCustom.typical_packs) || 1
+      };
+      saveCustomCatalog([...customCatalog, item]);
+    } else if (shopType === 'menu') {
+      if (!newCustom.name || !newCustom.category || !newCustom.typical_price) {
+        alert('Fill all required fields'); return;
+      }
+      const item = {
+        name: newCustom.name,
+        hindi_name: newCustom.hindi_name || '',
+        category: newCustom.category,
+        description: newCustom.description || '',
+        typical_price: newCustom.typical_price,
+        common_varieties: newCustom.common_varieties ? newCustom.common_varieties.split(',').map((v:string)=>v.trim()) : [],
+        unit: newCustom.unit || ''
+      };
+      saveCustomCatalog([...customCatalog, item]);
+    } else if (shopType === 'service') {
+      if (!newCustom.name || !newCustom.category || !newCustom.typical_price_range) {
+        alert('Fill all required fields'); return;
+      }
+      const item = {
+        name: newCustom.name,
+        description: newCustom.description || '',
+        category: newCustom.category,
+        highlights: newCustom.highlights ? newCustom.highlights.split(',').map((v:string)=>v.trim()) : [],
+        tags: newCustom.tags ? newCustom.tags.split(',').map((v:string)=>v.trim()) : [],
+        typical_price_range: newCustom.typical_price_range,
+        serviceDetails: {}
+      };
+      saveCustomCatalog([...customCatalog, item]);
+    }
+    setShowAddCustom(false);
+    setNewCustom({});
+  };
+
+  const handleDeleteCatalog = (itemName: string) => {
+    // Only allow delete for custom items
+    if (customCatalog.some(i => i.name === itemName)) {
+      const updated = customCatalog.filter(i => i.name !== itemName);
+      saveCustomCatalog(updated);
+    } else {
+      alert('Cannot delete default catalog item.');
+    }
+  };
 
   const filteredItems = catalog.filter(item => {
     const matchesSearch = searchTerm === '' || 
@@ -162,6 +236,43 @@ const ItemCatalog: React.FC<ItemCatalogProps> = ({ shopType, onAddItems, existin
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-gray-900">
+            {shopType === 'product' ? 'Product' : shopType === 'menu' ? 'Menu' : 'Service'} Catalog
+          </h2>
+          <button
+            className={`px-3 py-2 rounded bg-${color}-600 text-white hover:bg-${color}-700 text-sm`}
+            onClick={() => setShowAddCustom(v => !v)}
+            type="button"
+          >
+            + Add Custom
+          </button>
+        </div>
+        {showAddCustom && (
+          <div className="mb-4 p-4 bg-gray-50 rounded border border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input className="px-2 py-1 border rounded" placeholder="Name*" value={newCustom.name||''} onChange={e=>setNewCustom((prev:any)=>({...prev,name:e.target.value}))} />
+              <input className="px-2 py-1 border rounded" placeholder="Hindi Name" value={newCustom.hindi_name||''} onChange={e=>setNewCustom((prev:any)=>({...prev,hindi_name:e.target.value}))} />
+              <input className="px-2 py-1 border rounded" placeholder="Category*" value={newCustom.category||''} onChange={e=>setNewCustom((prev:any)=>({...prev,category:e.target.value}))} />
+              {shopType==='product' && <input className="px-2 py-1 border rounded" placeholder="Brand Name*" value={newCustom.brand_name||''} onChange={e=>setNewCustom((prev:any)=>({...prev,brand_name:e.target.value}))} />}
+              {shopType==='product' && <input className="px-2 py-1 border rounded" placeholder="Price Range* (e.g. 10-100)" value={newCustom.typical_price_range||''} onChange={e=>setNewCustom((prev:any)=>({...prev,typical_price_range:e.target.value}))} />}
+              {shopType==='product' && <input className="px-2 py-1 border rounded" placeholder="Varieties (comma separated)" value={newCustom.common_varieties||''} onChange={e=>setNewCustom((prev:any)=>({...prev,common_varieties:e.target.value}))} />}
+              {shopType==='product' && <input className="px-2 py-1 border rounded" placeholder="Packs (number)" value={newCustom.typical_packs||''} onChange={e=>setNewCustom((prev:any)=>({...prev,typical_packs:e.target.value}))} />}
+              {shopType==='menu' && <input className="px-2 py-1 border rounded" placeholder="Description" value={newCustom.description||''} onChange={e=>setNewCustom((prev:any)=>({...prev,description:e.target.value}))} />}
+              {shopType==='menu' && <input className="px-2 py-1 border rounded" placeholder="Price* (e.g. 150)" value={newCustom.typical_price||''} onChange={e=>setNewCustom((prev:any)=>({...prev,typical_price:e.target.value}))} />}
+              {shopType==='menu' && <input className="px-2 py-1 border rounded" placeholder="Varieties (comma separated)" value={newCustom.common_varieties||''} onChange={e=>setNewCustom((prev:any)=>({...prev,common_varieties:e.target.value}))} />}
+              {shopType==='menu' && <input className="px-2 py-1 border rounded" placeholder="Unit (e.g. plate)" value={newCustom.unit||''} onChange={e=>setNewCustom((prev:any)=>({...prev,unit:e.target.value}))} />}
+              {shopType==='service' && <input className="px-2 py-1 border rounded" placeholder="Description" value={newCustom.description||''} onChange={e=>setNewCustom((prev:any)=>({...prev,description:e.target.value}))} />}
+              {shopType==='service' && <input className="px-2 py-1 border rounded" placeholder="Price Range* (e.g. 500-1000)" value={newCustom.typical_price_range||''} onChange={e=>setNewCustom((prev:any)=>({...prev,typical_price_range:e.target.value}))} />}
+              {shopType==='service' && <input className="px-2 py-1 border rounded" placeholder="Highlights (comma separated)" value={newCustom.highlights||''} onChange={e=>setNewCustom((prev:any)=>({...prev,highlights:e.target.value}))} />}
+              {shopType==='service' && <input className="px-2 py-1 border rounded" placeholder="Tags (comma separated)" value={newCustom.tags||''} onChange={e=>setNewCustom((prev:any)=>({...prev,tags:e.target.value}))} />}
+            </div>
+            <div className="flex gap-2 mt-3">
+              <button className={`px-4 py-2 rounded bg-${color}-600 text-white`} onClick={handleAddCustom} type="button">Add</button>
+              <button className="px-4 py-2 rounded bg-gray-200" onClick={()=>setShowAddCustom(false)} type="button">Cancel</button>
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-900">
             {shopType === 'product' ? 'Product' : shopType === 'menu' ? 'Menu' : 'Service'} Catalog
@@ -217,7 +328,7 @@ const ItemCatalog: React.FC<ItemCatalogProps> = ({ shopType, onAddItems, existin
         {filteredItems.map(item => {
           const isSelected = selectedItems.has(item.name);
           const customization = customizations[item.name];
-          
+          const isCustom = customCatalog.some(i => i.name === item.name);
           return (
             <div
               key={item.name}
@@ -236,9 +347,11 @@ const ItemCatalog: React.FC<ItemCatalogProps> = ({ shopType, onAddItems, existin
                       <span className="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
                         {item.category}
                       </span>
+                      {isCustom && (
+                        <button className="ml-2 text-xs text-red-500 hover:underline" onClick={() => handleDeleteCatalog(item.name)} type="button">Delete</button>
+                      )}
                     </div>
                   </div>
-                  
                   <button
                     onClick={() => toggleItemSelection(item.name)}
                     className={`p-2 rounded-lg border-2 transition-colors ${
@@ -250,7 +363,6 @@ const ItemCatalog: React.FC<ItemCatalogProps> = ({ shopType, onAddItems, existin
                     {isSelected ? <ShoppingCart className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                   </button>
                 </div>
-
                 <div className="text-sm text-gray-600 mb-3">
                   {shopType === 'product' && (
                     <>
@@ -271,7 +383,6 @@ const ItemCatalog: React.FC<ItemCatalogProps> = ({ shopType, onAddItems, existin
                     </>
                   )}
                 </div>
-
                 {isSelected && customization && (
                   <div className="space-y-3 pt-3 border-t border-gray-100">
                     {shopType === 'product' && (
@@ -303,7 +414,6 @@ const ItemCatalog: React.FC<ItemCatalogProps> = ({ shopType, onAddItems, existin
                         </div>
                       </>
                     )}
-                    
                     {shopType === 'menu' && (
                       <>
                         <div>
@@ -332,7 +442,6 @@ const ItemCatalog: React.FC<ItemCatalogProps> = ({ shopType, onAddItems, existin
                         </div>
                       </>
                     )}
-                    
                     {shopType === 'service' && (
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">
