@@ -62,7 +62,7 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, shopType }) => {
     }
   });
 
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  // Removed showAdvanced toggle; all fields are always visible
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -307,7 +307,7 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, shopType }) => {
         </div>
       </div>
 
-      {showAdvanced && (
+  {/* Advanced fields always visible */}
         <div className="space-y-4 border-t pt-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -352,8 +352,14 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, shopType }) => {
                 type="number"
                 min="1"
                 max="50"
-                value={formData.packs}
-                onChange={(e) => setFormData((prev: any) => ({ ...prev, packs: parseInt(e.target.value) || 1 }))}
+                value={formData.packs === 0 ? '' : formData.packs}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFormData((prev: any) => ({
+                    ...prev,
+                    packs: val === '' ? '' : Math.max(1, Math.min(50, parseInt(val)))
+                  }));
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="5"
               />
@@ -373,7 +379,6 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, shopType }) => {
             </div>
           </div>
         </div>
-      )}
     </>
   );
 
@@ -440,7 +445,7 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, shopType }) => {
         </div>
       </div>
 
-      {showAdvanced && (
+  {/* Advanced fields always visible */}
         <div className="space-y-4 border-t pt-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -533,7 +538,6 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, shopType }) => {
             </button>
           </div>
         </div>
-      )}
     </>
   );
 
@@ -581,7 +585,7 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, shopType }) => {
         </div>
       </div>
 
-      {showAdvanced && (
+  {/* Advanced fields always visible */}
         <div className="space-y-4 border-t pt-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -766,7 +770,6 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, shopType }) => {
             </div>
           </div>
         </div>
-      )}
     </>
   );
 
@@ -784,31 +787,45 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, shopType }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border p-6">
       <h2 className="text-xl font-semibold text-gray-900 mb-6">
-        Add New {shopType === 'product' ? 'Product' : shopType === 'menu' ? 'Menu Item' : 'Service'}
+        {shopType === 'product' && 'Add New Product'}
+        {shopType === 'menu' && 'Add New Menu Item'}
+        {shopType === 'service' && 'Add New Service'}
       </h2>
-      
       <form onSubmit={handleSubmit} className="space-y-6">
         {shopType === 'product' && renderProductFields()}
         {shopType === 'menu' && renderMenuFields()}
         {shopType === 'service' && renderServiceFields()}
 
-        {/* Advanced Fields Toggle */}
-        <button
-          type="button"
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className={`text-sm text-${color}-600 hover:text-${color}-700 font-medium`}
-        >
-          {showAdvanced ? 'Hide' : 'Show'} Advanced Fields
-        </button>
+        {/* Advanced Fields Toggle removed; all fields are always visible */}
 
         <div className="flex justify-end">
-          <button
-            type="submit"
-            className={`flex items-center px-6 py-3 bg-${color}-600 text-white rounded-lg hover:bg-${color}-700 transition-colors font-medium`}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add {shopType === 'product' ? 'Product' : shopType === 'menu' ? 'Menu Item' : 'Service'}
-          </button>
+          {shopType === 'product' && (
+            <button
+              type="submit"
+              className="flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Product
+            </button>
+          )}
+          {shopType === 'menu' && (
+            <button
+              type="submit"
+              className="flex items-center px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors font-medium"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Menu Item
+            </button>
+          )}
+          {shopType === 'service' && (
+            <button
+              type="submit"
+              className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Service
+            </button>
+          )}
         </div>
       </form>
     </div>
