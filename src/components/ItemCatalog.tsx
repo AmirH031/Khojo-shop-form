@@ -15,6 +15,7 @@ const ItemCatalog: React.FC<ItemCatalogProps> = ({ shopType, onAddItems, existin
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [customizations, setCustomizations] = useState<Record<string, any>>({});
   const [customCatalog, setCustomCatalog] = useState<any[]>([]);
+  const [deletedPredefinedItems, setDeletedPredefinedItems] = useState<Set<string>>(new Set());
   const [showAddCustom, setShowAddCustom] = useState(false);
   const [newCustom, setNewCustom] = useState<any>({});
 
@@ -22,11 +23,20 @@ const ItemCatalog: React.FC<ItemCatalogProps> = ({ shopType, onAddItems, existin
   useEffect(() => {
     const saved = localStorage.getItem(`customCatalog_${shopType}`);
     setCustomCatalog(saved ? JSON.parse(saved) : []);
+    
+    // Load deleted predefined items
+    const deletedItems = localStorage.getItem(`deletedPredefined_${shopType}`);
+    setDeletedPredefinedItems(new Set(deletedItems ? JSON.parse(deletedItems) : []));
   }, [shopType]);
 
   const saveCustomCatalog = (items: any[]) => {
     setCustomCatalog(items);
     localStorage.setItem(`customCatalog_${shopType}` , JSON.stringify(items));
+  };
+
+  const saveDeletedPredefinedItems = (deletedSet: Set<string>) => {
+    setDeletedPredefinedItems(deletedSet);
+    localStorage.setItem(`deletedPredefined_${shopType}`, JSON.stringify(Array.from(deletedSet)));
   };
 
   const getCatalog = () => {
@@ -37,7 +47,9 @@ const ItemCatalog: React.FC<ItemCatalogProps> = ({ shopType, onAddItems, existin
       case 'service': base = serviceCatalog; break;
       default: base = [];
     }
-    return [...base, ...customCatalog];
+    // Filter out deleted predefined items
+    const filteredBase = base.filter(item => !deletedPredefinedItems.has(item.name));
+    return [...filteredBase, ...customCatalog];
   };
 
   const catalog = getCatalog();
@@ -92,12 +104,29 @@ const ItemCatalog: React.FC<ItemCatalogProps> = ({ shopType, onAddItems, existin
   };
 
   const handleDeleteCatalog = (itemName: string) => {
-    // Only allow delete for custom items
+    // Check if it's a custom item
     if (customCatalog.some(i => i.name === itemName)) {
-      const updated = customCatalog.filter(i => i.name !== itemName);
-      saveCustomCatalog(updated);
+      if (confirm(`Delete custom item "${itemName}"?`)) {
+        const updated = customCatalog.filter(i => i.name !== itemName);
+        saveCustomCatalog(updated);
+      }
     } else {
-      alert('Cannot delete default catalog item.');
+      // It's a predefined item - add to deleted list
+      if (confirm(`Hide predefined item "${itemName}" from catalog? You can restore it later.`)) {
+        const newDeletedSet = new Set(deletedPredefinedItems);
+        newDeletedSet.add(itemName);
+        saveDeletedPredefinedItems(newDeletedSet);
+        
+        // If the item was selected, remove it from selection
+        if (selectedItems.has(itemName)) {
+          const newSelected = new Set(selectedItems);
+          newSelected.delete(itemName);
+          setSelectedItems(newSelected);
+          const newCustomizations = { ...customizations };
+          delete newCustomizations[itemName];
+          setCustomizations(newCustomizations);
+        }
+      }
     }
   };
 
@@ -240,13 +269,28 @@ const ItemCatalog: React.FC<ItemCatalogProps> = ({ shopType, onAddItems, existin
           <h2 className="text-xl font-semibold text-gray-900">
             {shopType === 'product' ? 'Product' : shopType === 'menu' ? 'Menu' : 'Service'} Catalog
           </h2>
-          <button
-            className={`px-3 py-2 rounded bg-${color}-600 text-white hover:bg-${color}-700 text-sm`}
-            onClick={() => setShowAddCustom(v => !v)}
-            type="button"
-          >
-            + Add Custom
-          </button>
+          <div className="flex gap-2">
+            {deletedPredefinedItems.size > 0 && (
+              <button
+                className={`px-3 py-2 rounded bg-gray-600 text-white hover:bg-gray-700 text-sm`}
+                onClick={() => {
+                  if (confirm(`Restore ${deletedPredefinedItems.size} deleted items?`)) {
+                    saveDeletedPredefinedItems(new Set());
+                  }
+                }}
+                type="button"
+              >
+                Restore Deleted ({deletedPredefinedItems.size})
+              </button>
+            )}
+            <button
+              className={`px-3 py-2 rounded bg-${color}-600 text-white hover:bg-${color}-700 text-sm`}
+              onClick={() => setShowAddCustom(v => !v)}
+              type="button"
+            >
+              + Add Custom
+            </button>
+          </div>
         </div>
         {showAddCustom && (
           <div className="mb-4 p-4 bg-gray-50 rounded border border-gray-200">
@@ -347,9 +391,23 @@ const ItemCatalog: React.FC<ItemCatalogProps> = ({ shopType, onAddItems, existin
                       <span className="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
                         {item.category}
                       </span>
-                      {isCustom && (
-                        <button className="ml-2 text-xs text-red-500 hover:underline" onClick={() => handleDeleteCatalog(item.name)} type="button">Delete</button>
+                      {isCustom ? (
+                        <span className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">
+                          Custom
+                        </span>
+                      ) : (
+                        <span className="inline-block px-2 py-1 text-xs bg-green-100 text-green-700 rounded">
+                          Predefined
+                        </span>
                       )}
+                      <button 
+                        className="ml-2 text-xs text-red-500 hover:underline" 
+                        onClick={() => handleDeleteCatalog(item.name)} 
+                        type="button"
+                        title={isCustom ? "Delete custom item" : "Hide predefined item"}
+                      >
+                        {isCustom ? "Delete" : "Hide"}
+                      </button>
                     </div>
                   </div>
                   <button
